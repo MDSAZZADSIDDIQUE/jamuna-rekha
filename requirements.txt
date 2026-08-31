@@ -1,0 +1,68 @@
+# যমুনারেখা / JamunaRekha — Python 3.11
+#
+# Install:
+#   python -m venv .venv && .venv\Scripts\activate     (Windows)
+#   pip install -r requirements.txt
+#
+# NOTE ON numpy: pinned to the 1.26 line on purpose. The geospatial binary
+# stack (rasterio / fiona / scikit-image) is the fragile part of this project,
+# and 1.26.4 is the version everything below has known-good cp311 wheels for.
+# Do not bump to numpy 2.x without re-testing the whole raster path.
+#
+# NOTE ON torch: this is the CPU/default build, which is what we want for local
+# 256x256 debugging on Windows. On the Runpod A100 image, torch is already
+# present with CUDA — install this file there with torch/torchvision REMOVED
+# rather than overwriting the container's CUDA build.
+
+# ---- numerics -------------------------------------------------------------
+numpy==1.26.4
+scipy==1.14.1
+pandas==2.2.3
+
+# ---- deep learning --------------------------------------------------------
+torch==2.4.1
+torchvision==0.19.1
+pytorch-lightning==2.4.0
+torchmetrics==1.4.3
+einops==0.8.0            # tensor rearrange, used heavily by the TimeSformer port
+timm==1.0.11             # ViT/TimeSformer building blocks
+
+# ---- geospatial / raster --------------------------------------------------
+rasterio==1.3.11
+geopandas==1.0.1
+shapely==2.0.6
+pyproj==3.7.0
+fiona==1.10.1
+
+# ---- image processing (Otsu threshold, Sobel, morphology) -----------------
+scikit-image==0.24.0
+scikit-learn==1.5.2
+opencv-python-headless==4.10.0.84
+
+# ---- dashboard ------------------------------------------------------------
+streamlit==1.39.0
+folium==0.17.0
+streamlit-folium==0.23.1
+branca==0.7.2
+
+# ---- config, IO, logging --------------------------------------------------
+omegaconf==2.3.0
+PyYAML==6.0.2
+requests==2.32.3         # Overpass API calls
+tqdm==4.66.5
+tensorboard==2.18.0
+matplotlib==3.9.2
+
+# ---- dev ------------------------------------------------------------------
+pytest==8.3.3
+ruff==0.7.1
+black==24.10.0
+
+# ---- optional -------------------------------------------------------------
+# Stage 1 runs in the Earth Engine Code Editor (browser), so the Python client
+# is NOT required. Uncomment only if we move exports into Python.
+#   earthengine-api
+#   geemap
+#
+# Experiment tracking, if we decide the A100 runs need it:
+#   wandb
