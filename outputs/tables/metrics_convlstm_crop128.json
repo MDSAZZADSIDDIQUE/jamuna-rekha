@@ -1,0 +1,54 @@
+{
+  "run_name": "convlstm_crop128",
+  "model": "convlstm",
+  "crop_size": 128,
+  "in_frames": 12,
+  "out_frames": 3,
+  "seed": 1972,
+  "gradient_weight": 0.3,
+  "pos_weight": 6.071455718507496,
+  "trainable_params": 47555,
+  "epochs_configured": 6,
+  "seconds_per_epoch": 455.0944048166275,
+  "resolution_m": 120.0,
+  "n_train_windows": 473,
+  "n_val_windows": 320,
+  "n_test_windows": 4480,
+  "test_metrics": {
+    "test/loss": 0.8375799059867859,
+    "test/bce": 0.7833858728408813,
+    "test/grad": 0.18064667284488678,
+    "test/iou": 0.4064672887325287,
+    "test/bank_precision": 0.5463404059410095,
+    "test/bank_recall": 0.6250209808349609,
+    "test/bank_f1": 0.5830382108688354,
+    "test/mde_m": 695.974365234375,
+    "test/mde_median_m": 450.59344482421875
+  },
+  "per_horizon": [
+    {
+      "horizon_months": 1,
+      "iou": 0.48669405846425734,
+      "bank_f1": 0.6305517460300992,
+      "bank_precision": 0.6104615715815395,
+      "bank_recall": 0.7328333797805345,
+      "mde_m": 634.2594893072807
+    },
+    {
+      "horizon_months": 2,
+      "iou": 0.39320723662651874,
+      "bank_f1": 0.5853051764375986,
+      "bank_precision": 0.5374594624955643,
+      "bank_recall": 0.7301921697856375,
+      "mde_m": 710.577686231
+    },
+    {
+      "horizon_months": 3,
+      "iou": 0.36780490575274055,
+      "bank_f1": 0.5681798449000196,
+      "bank_precision": 0.5175016177686202,
+      "bank_recall": 0.728486116416394,
+      "mde_m": 759.6049063080003
+    }
+  ]
+}

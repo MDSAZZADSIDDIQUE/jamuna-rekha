@@ -162,7 +162,9 @@ src/jamunarekha/
   dashboard/         Streamlit app
   utils/             geo helpers, seeding, logging
 notebooks/           exploration only
+scripts/             stage runners, figures, manuscript build, sync_web_data.py
 tests/               pytest
+web/                 Next.js static site for the DDM (reads web/public/data/)
 data/raw|interim|processed/    git-ignored
 outputs/checkpoints|figures|predictions|logs|tables/   mostly git-ignored
 docs/NOTES.md        running research log → feeds the Bengali paper
@@ -172,5 +174,46 @@ docs/NOTES.md        running research log → feeds the Bengali paper
 
 ## 6. Current status
 
-Scaffolding only. **No pipeline code written yet.** Next step is Stage 1
-(GEE acquisition script), and only after the user has confirmed this skeleton.
+**All five stages implemented and run end to end on real data.**
+
+- **Stage 1 — done.** 2,544 tile-month composites (4 tiles × 636 months,
+  1972–2024), 701 MB, from **4,107 unique Landsat scenes**. Acquisition runs
+  against the Microsoft Planetary Computer STAC rather than the GEE Code
+  Editor — same USGS Collection 2 product, no interactive auth, fully
+  scriptable and resumable. `gee/01_mndwi_export.js` reproduces the identical
+  logic in Earth Engine for anyone who prefers it.
+- **Stage 2 — done.** `JamunaShift-52Y` built for all four tiles. Observed
+  fraction 0.536 rises to 0.799 after capped temporal interpolation; mean
+  water fraction 0.114.
+- **Stage 3 — done.** TimeSformer + pixel decoder, ConvLSTM and persistence,
+  all on one LightningModule contract. Trained locally on CPU — **this machine
+  has no CUDA device** — at 128 px crops.
+- **Stage 4 — done.** Erosion/accretion vectorised, OSM buildings via Overpass,
+  aggregated to union parishad on GADM 4.1 boundaries. The table also carries
+  each union's OSM mapping density (buildings per km² over the queried area;
+  low / medium / high) and Bengali names for every level, matched from a
+  National Portal compilation and checked against each unit's official portal
+  page (`risk/names_bn.py`; the match record for review is
+  `outputs/tables/bn_names_<month>.csv`). The run summary records how many
+  Overpass cells answered, so an incomplete building cache is visible.
+- **Stage 5 — done.** Bilingual Streamlit dashboard with CSV export for DDM.
+  **Web version live at https://jamunarekha.vercel.app** — `web/` is a
+  Next.js 16 static export (Bengali at `/`, English at `/en/`), with a Leaflet
+  map of the forecast zones (live since 2026-09-22).
+  `scripts/sync_web_data.py` copies Stage 4 results into `web/public/data/`;
+  the site computes nothing. In `web/`: `npm run build` (writes `web/out/`),
+  `npm run lint`, `npm test`. Hosted as Vercel project `jamunarekha` in the
+  user's personal scope (`mdsazzadsiddiques-projects`), deployed from `web/`
+  with `vercel deploy --prod`. Git auto-deploy is deliberately **not**
+  connected: a push does not publish. Each deploy needs the user's go-ahead.
+- **Paper — drafted** in `docs/paper/`, assembled into .docx by
+  `scripts/build_manuscript.py` with the Bangla Academy typography.
+
+Run the environment with the conda env `jamunarekha` (Python 3.11). On Windows
+it needs no `conda activate`: a `sitecustomize.py` in the env registers the
+DLL directories, without which numpy's BLAS fails to load and the process dies
+with no traceback.
+
+See `docs/NOTES.md` for the decision log, including several silent bugs the
+tests caught — tile edges being scored as shoreline, Otsu splitting a unimodal
+histogram, and server-side cloud filtering quietly deleting MSS scenes.

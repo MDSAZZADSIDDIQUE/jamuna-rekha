@@ -1,0 +1,20 @@
+# Local development on CPU. The machine has no CUDA device, so the model and
+# crop are sized to what finishes in hours rather than days. The A100 settings
+# live in a100.yaml; seconds/epoch measured here is what sizes that booking.
+data:
+  crop_size: 128                  # 15.4 km window at 120 m
+  batch_size: 4
+  window_stride: 3                # neighbouring windows share 11 of 12 frames
+  max_val_windows: 320            # validation runs every epoch; cap its cost
+model:
+  embed_dim: 128
+  depth: 4
+  num_heads: 4
+  patch_size: 8                   # 16x16 token grid, ~960 m per token
+  decoder_channels: [64, 32, 16]
+  hidden_channels: 32             # ConvLSTM baseline width
+  num_layers: 1
+train:
+  max_epochs: 6
+  precision: "32-true"
+  early_stop_patience: 0          # let all epochs run; the schedule is short

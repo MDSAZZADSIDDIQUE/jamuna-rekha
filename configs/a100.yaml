@@ -1,0 +1,14 @@
+# Full training run on the rented A100 (Runpod). Book only after the local
+# smoke tests pass and seconds/epoch has been measured locally.
+data:
+  crop_size: 512
+  batch_size: 8
+  num_workers: 8
+model:
+  embed_dim: 256
+  depth: 6
+  num_heads: 8
+train:
+  max_epochs: 40
+  precision: "16-mixed"
+  accelerator: "gpu"

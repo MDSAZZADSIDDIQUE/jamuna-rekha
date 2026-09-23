@@ -1,0 +1,54 @@
+{
+  "run_name": "timesformer_crop128",
+  "model": "timesformer",
+  "crop_size": 128,
+  "in_frames": 12,
+  "out_frames": 3,
+  "seed": 1972,
+  "gradient_weight": 0.3,
+  "pos_weight": 6.071455718507496,
+  "trainable_params": 1264392,
+  "epochs_configured": 6,
+  "seconds_per_epoch": 360.1195038954417,
+  "resolution_m": 120.0,
+  "n_train_windows": 473,
+  "n_val_windows": 320,
+  "n_test_windows": 4480,
+  "test_metrics": {
+    "test/loss": 0.8923234939575195,
+    "test/bce": 0.8382629156112671,
+    "test/grad": 0.18020135164260864,
+    "test/iou": 0.359576553106308,
+    "test/bank_precision": 0.4659546911716461,
+    "test/bank_recall": 0.6410831809043884,
+    "test/bank_f1": 0.5396666526794434,
+    "test/mde_m": 924.9642944335938,
+    "test/mde_median_m": 622.4401245117188
+  },
+  "per_horizon": [
+    {
+      "horizon_months": 1,
+      "iou": 0.3913924696572583,
+      "bank_f1": 0.5470021452215972,
+      "bank_precision": 0.4802081239404583,
+      "bank_recall": 0.7273606764808589,
+      "mde_m": 882.5976791551773
+    },
+    {
+      "horizon_months": 2,
+      "iou": 0.33565507991378823,
+      "bank_f1": 0.5422525296099191,
+      "bank_precision": 0.45286274383884373,
+      "bank_recall": 0.7544951705167787,
+      "mde_m": 881.4714208256935
+    },
+    {
+      "horizon_months": 3,
+      "iou": 0.3338484882461544,
+      "bank_f1": 0.5302390068242283,
+      "bank_precision": 0.45572797665795556,
+      "bank_recall": 0.7193071084075487,
+      "mde_m": 1024.8456361872084
+    }
+  ]
+}

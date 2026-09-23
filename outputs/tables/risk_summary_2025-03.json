@@ -1,0 +1,94 @@
+{
+  "tiles": [
+    {
+      "tile": "T00_00",
+      "anchor_month": "2024-12",
+      "forecast_month": "2025-03",
+      "reference_month": "2024-03",
+      "seasonally_matched": true,
+      "erosion_ha": 32486.399999999998,
+      "accretion_ha": 8004.959999999999
+    },
+    {
+      "tile": "T01_00",
+      "anchor_month": "2024-12",
+      "forecast_month": "2025-03",
+      "reference_month": "2024-03",
+      "seasonally_matched": true,
+      "erosion_ha": 21371.04,
+      "accretion_ha": 1074.24
+    },
+    {
+      "tile": "T02_00",
+      "anchor_month": "2024-12",
+      "forecast_month": "2025-03",
+      "reference_month": "2024-03",
+      "seasonally_matched": true,
+      "erosion_ha": 16279.2,
+      "accretion_ha": 1982.88
+    },
+    {
+      "tile": "T03_00",
+      "anchor_month": "2024-12",
+      "forecast_month": "2025-03",
+      "reference_month": "2024-03",
+      "seasonally_matched": true,
+      "erosion_ha": 18684.0,
+      "accretion_ha": 1883.52
+    }
+  ],
+  "forecast_month": "2025-03",
+  "total_erosion_ha": 88820.63999999998,
+  "total_accretion_ha": 12945.599999999999,
+  "n_polygons": 4647,
+  "n_buildings_osm": 908886,
+  "n_unions_affected": 342,
+  "osm_cells_requested": 150,
+  "osm_cells_answered": 150,
+  "osm_mapping": {
+    "low": 163,
+    "high": 107,
+    "medium": 71,
+    "not measured": 1
+  },
+  "osm_mapping_bands": {
+    "low_below": 10.0,
+    "high_from": 100.0,
+    "min_area_km2": 1.0
+  },
+  "bn_names": {
+    "unions_named": 337,
+    "methods": {
+      "exact": 302,
+      "paurashava": 16,
+      "fuzzy": 11,
+      "exact-bengali": 6,
+      "rejected": 5,
+      "sadar": 2
+    },
+    "portal_checks": {
+      "verified": 312,
+      "composed": 16,
+      "no Bengali title": 5,
+      "none": 5,
+      "portal": 4
+    },
+    "source": "https://raw.githubusercontent.com/nuhil/bangladesh-geocode/5622f68bd07a98e076edcf8100bf0db6a75b9854"
+  },
+  "water_threshold": 0.55,
+  "threshold_calibration": {
+    "0.30": 0.5759,
+    "0.35": 0.583,
+    "0.40": 0.5897,
+    "0.45": 0.5947,
+    "0.50": 0.5977,
+    "0.55": 0.5985,
+    "0.60": 0.5966,
+    "0.65": 0.5917,
+    "0.70": 0.5832,
+    "0.75": 0.5698,
+    "0.80": 0.5496
+  },
+  "model": "convlstm",
+  "checkpoint": "outputs/checkpoints/convlstm_crop128/last.ckpt"
+}

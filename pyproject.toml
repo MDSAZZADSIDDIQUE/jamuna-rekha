@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jamunarekha"
+version = "0.1.0"
+description = "Neural forecasting of Jamuna River shoreline position, three months ahead"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [{ name = "Md. Sazzad Siddique" }]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+# Makes `jamunarekha.*` importable in tests without setting PYTHONPATH and
+# without installing the package. pytest >= 7 supports this natively.
+pythonpath = ["src"]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]

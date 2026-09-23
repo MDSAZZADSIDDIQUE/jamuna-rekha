@@ -1,0 +1,6 @@
+# Vercel builds the site itself from source; local build output, caches and
+# test artefacts need not be uploaded. (node_modules and .next are skipped by
+# default.) public/data/ must stay: the build reads forecast.json from it.
+out/
+coverage/
+*.tsbuildinfo

@@ -86,7 +86,9 @@ src/jamunarekha/
   dashboard/         Streamlit app
   utils/             geo helpers, seeding, logging
 notebooks/           exploration only
+scripts/             stage runners, figures, manuscript build, web data sync
 tests/               pytest
+web/                 Next.js static site for the DDM (Bengali and English)
 data/                raw / interim / processed — git-ignored
 outputs/             checkpoints, figures, predictions, logs, tables
 docs/NOTES.md        running research log, feeds the Bengali paper
@@ -101,7 +103,95 @@ rent the A100. The pipeline is built and verified **one module at a time**.
 
 ### Status
 
-Scaffolding. No pipeline code yet — Stage 1 is next.
+All five stages are implemented and have been run end to end on real data.
+
+| Stage | State | Evidence |
+|---|---|---|
+| 1 Acquisition | done | 2,544 tile-month composites, 1972–2024, from **4,107 Landsat scenes** |
+| 2 Preprocessing | done | `JamunaShift-52Y` over 4 tiles; observed 0.536 → 0.799 after gap-filling |
+| 3 Model | done | TimeSformer, ConvLSTM, persistence — one LightningModule contract |
+| 4 Risk overlay | done | erosion polygons → OSM buildings → union parishad CSV |
+| 5 Dashboard | done | bilingual Streamlit app with DDM CSV export; static website in `web/`, not yet deployed |
+
+Acquisition runs against the **Microsoft Planetary Computer STAC**, not the
+Earth Engine Code Editor. It is the same USGS Collection 2 product, but it
+needs no interactive Google sign-in, so the whole 52-year pull is scriptable,
+resumable and reproducible from version control. `gee/01_mndwi_export.js`
+reproduces the identical logic in Earth Engine for anyone who prefers to
+re-run it there.
+
+### Results so far
+
+Test split 2018–2024 (4,480 windows, years never seen in training or validation):
+
+| model | params | IoU | bank F1 | MDE |
+|---|---|---|---|---|
+| **ConvLSTM** | 0.05 M | **0.406** | **0.583** | **696 m** |
+| persistence | 0 | 0.378 | 0.543 | 776 m |
+| TimeSformer | 1.26 M | 0.360 | 0.540 | 925 m |
+
+The pooled numbers hide the point. Split by lead time, **persistence is the
+best forecaster at +1 month** — a river does not move much in four weeks — and
+then falls away fast. ConvLSTM overtakes it between month one and two and is
+clearly ahead at +3 (bank F1 0.568 vs 0.494, MDE 760 m vs 914 m). Three months
+is the horizon preparedness needs, so the learned model earns its keep exactly
+where it matters.
+
+TimeSformer under-performs persistence here: 1.26 M parameters trained on 473
+windows for six CPU epochs is too little data and too little compute for its
+capacity. That is reported, not hidden.
+
+**Three findings that change how the numbers should be read:**
+
+1. **The archive has holes.** Seven years — 1974 and 1981–1986 — contain *no*
+   usable scene over the study area, verified independently on all four tiles.
+   Only 53.6 % of pixel-months are directly observed. "A continuous 52-year
+   record" is not an accurate description and is not claimed.
+2. **Gross erosion badly overstates land loss.** Measured between two
+   *observed* masks, year-on-year change is already 6,000–18,000 ha per tile —
+   and is nearly cancelled by accretion. In a braided river the channels trade
+   places. **Net** land change is the interpretable quantity.
+3. **The household count is spatially biased, not just incomplete.** Kurigram
+   has 19,132 mapped buildings against 22,308 ha of predicted erosion; Bogra
+   has **77** against 8,321 ha; Tangail **2** against 2,647 ha. Twelve unions
+   with over 500 ha of predicted erosion have *zero* mapped buildings, and of
+   the 195 eroding unions with no building in the erosion zone, 129 have fewer
+   than 10 mapped buildings per km² across the whole union. The table carries
+   that density for every union (`osm_mapping`). Ranking
+   unions by households would rank them by OSM mapping density rather than by
+   risk — so **rank by hectares**, and treat the household column as
+   supporting evidence with its assumption attached.
+
+The absolute figures from Stage 4 (88,821 ha, 20,712 households) demonstrate
+that the mechanism works end to end. They are **not** an operational warning:
+the forecast's net land change is −75,875 ha where the observed control is
+near zero, and that gap is the model's water over-prediction. Absolute values
+wait on the full-scale run and field validation.
+
+**This development machine has no CUDA device**, so local training runs on CPU
+at 128 px crops. `docs/NOTES.md` records the measured seconds per epoch, which
+is what the A100 booking should be sized from.
+
+### Running it
+
+```bash
+python scripts/run_stage1_acquire.py          # resumable; hours of network I/O
+python scripts/run_stage2_preprocess.py
+python scripts/run_stage3_train.py --config local.yaml --model timesformer
+python scripts/run_stage4_risk.py  --checkpoint outputs/checkpoints/timesformer_crop128/last.ckpt
+streamlit run src/jamunarekha/dashboard/app.py
+python scripts/make_figures.py
+python scripts/build_manuscript.py            # → docs/paper/*.docx
+python scripts/sync_web_data.py              # Stage 4 results → web/public/data/
+cd web && npm install && npm run build        # static website → web/out/
+```
+
+The website computes nothing: every figure on it comes from the Stage 4
+output, and its full CSV download is the pipeline's file, byte for byte.
+
+On Windows the conda env needs no `conda activate`: a `sitecustomize.py` in the
+environment registers its DLL directories. Without it, numpy's BLAS fails to
+load and the process dies with no Python traceback.
 
 ### Deliverables
 
@@ -187,7 +277,9 @@ src/jamunarekha/
   dashboard/         Streamlit অ্যাপ
   utils/             ভূস্থানিক সহায়ক, বীজ (seed), লগিং
 notebooks/           শুধু অনুসন্ধানের জন্য
+scripts/             ধাপ-চালক, চিত্র, পাণ্ডুলিপি তৈরি, ওয়েবসাইটের উপাত্ত-হালনাগাদ
 tests/               pytest
+web/                 DDM-এর জন্য Next.js স্থির ওয়েবসাইট (বাংলা ও ইংরেজি)
 data/                raw / interim / processed — গিটে রাখা হয় না
 outputs/             চেকপয়েন্ট, চিত্র, পূর্বাভাস, লগ, সারণি
 docs/NOTES.md        চলমান গবেষণা-নোট, যা বাংলা প্রবন্ধের কাঁচামাল
@@ -203,7 +295,42 @@ GPU-এর বাজেট সব মিলিয়ে প্রায় **৩
 
 ### বর্তমান অবস্থা
 
-কাঠামো তৈরি হয়েছে। এখনো কোনো পাইপলাইন কোড লেখা হয়নি — পরবর্তী ধাপ হলো ধাপ ১।
+পাঁচটি ধাপই সম্পূর্ণ এবং প্রকৃত উপাত্তে শুরু থেকে শেষ পর্যন্ত চালানো হয়েছে।
+
+| ধাপ | অবস্থা | প্রমাণ |
+|---|---|---|
+| ১ উপাত্ত সংগ্রহ | সম্পন্ন | ১৯৭২–২০২৪ সালের ২,৫৪৪টি মাসিক সংমিশ্রণ, **৪,১০৭টি ল্যান্ডস্যাট দৃশ্য** থেকে |
+| ২ প্রাক-প্রক্রিয়াকরণ | সম্পন্ন | চারটি টালিতে `JamunaShift-52Y`; পর্যবেক্ষিত ০.৫৩৬ → ফাঁক পূরণের পর ০.৭৯৯ |
+| ৩ মডেল | সম্পন্ন | TimeSformer, ConvLSTM, persistence — একটিই অভিন্ন আন্তঃসংযোগ |
+| ৪ ঝুঁকি বিশ্লেষণ | সম্পন্ন | ভাঙন-পলিগন → OSM ভবন → ইউনিয়নভিত্তিক CSV |
+| ৫ ড্যাশবোর্ড | সম্পন্ন | দ্বিভাষিক Streamlit অ্যাপ, DDM-এর জন্য CSV রপ্তানিসহ; `web/`-এ স্থির ওয়েবসাইট, এখনো প্রকাশিত হয়নি |
+
+উপাত্ত সংগ্রহ চলে **মাইক্রোসফট প্ল্যানেটারি কম্পিউটারের STAC** সেবা থেকে, আর্থ
+ইঞ্জিনের Code Editor থেকে নয়। মূল পণ্য অভিন্ন (ইউএসজিএস কালেকশন ২), কিন্তু এতে
+গুগল সাইন-ইনের প্রয়োজন নেই, ফলে বায়ান্ন বছরের সম্পূর্ণ সংগ্রহ স্ক্রিপ্টচালিত,
+পুনরারম্ভযোগ্য ও সংস্করণ-নিয়ন্ত্রণ থেকে পুনরুৎপাদনযোগ্য। অভিন্ন যুক্তির আর্থ
+ইঞ্জিন সংস্করণ `gee/01_mndwi_export.js`-এ সংরক্ষিত।
+
+**এই উন্নয়ন-যন্ত্রে কোনো CUDA জিপিইউ নেই**, তাই স্থানীয় প্রশিক্ষণ CPU-তে ১২৮
+পিক্সেল ক্রপে চলে। প্রতি ইপকের মাপা সময় `docs/NOTES.md`-এ লেখা আছে; A100 ভাড়া
+নেওয়ার আগে সেই সংখ্যা থেকেই হিসাব করতে হবে।
+
+### চালানোর নির্দেশ
+
+```bash
+python scripts/run_stage1_acquire.py          # পুনরারম্ভযোগ্য; কয়েক ঘণ্টার নেটওয়ার্ক কাজ
+python scripts/run_stage2_preprocess.py
+python scripts/run_stage3_train.py --config local.yaml --model timesformer
+python scripts/run_stage4_risk.py  --checkpoint outputs/checkpoints/timesformer_crop128/last.ckpt
+streamlit run src/jamunarekha/dashboard/app.py
+python scripts/make_figures.py
+python scripts/build_manuscript.py            # → docs/paper/*.docx
+python scripts/sync_web_data.py              # ধাপ ৪-এর ফল → web/public/data/
+cd web && npm install && npm run build        # স্থির ওয়েবসাইট → web/out/
+```
+
+ওয়েবসাইট নিজে কিছু গণনা করে না: এর প্রতিটি সংখ্যা ধাপ ৪-এর ফল থেকে আসে, আর
+পূর্ণ CSV ডাউনলোডটি পাইপলাইনের নিজস্ব ফাইল, হুবহু।
 
 ### প্রদেয়
 

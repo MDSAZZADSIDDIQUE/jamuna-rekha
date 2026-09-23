@@ -1,0 +1,138 @@
+# যমুনারেখা / JamunaRekha — base run configuration.
+#
+# Every path in the project comes from here. Nothing downstream hard-codes a
+# path (CLAUDE.md §4). Override per-machine with configs/local.yaml or
+# configs/a100.yaml, which are merged on top of this file by
+# jamunarekha.utils.config.load_config().
+
+project:
+  name: jamunarekha
+  seed: 1972          # the first year of the Landsat record; recorded in every run config
+
+paths:
+  root: "."
+  data_raw: "data/raw"
+  data_interim: "data/interim"
+  data_processed: "data/processed"
+  checkpoints: "outputs/checkpoints"
+  predictions: "outputs/predictions"
+  figures: "outputs/figures"
+  logs: "outputs/logs"
+  tables: "outputs/tables"
+  web_data: "web/public/data"     # what the Next.js dashboard reads; written by scripts/sync_web_data.py
+
+# ---------------------------------------------------------------------------
+# Study area and canonical analysis grid
+# ---------------------------------------------------------------------------
+# The bounding box is given in EPSG:4326 (degrees) because that is how the
+# study area is defined in the proposal. ALL raster analysis happens in
+# `target_crs`, a metric CRS, because Mean Displacement Error is reported in
+# metres and a degree CRS would make that number meaningless (CLAUDE.md §4).
+study_area:
+  bbox_wgs84: [89.4, 24.5, 89.9, 26.5]   # (min_lon, min_lat, max_lon, max_lat), EPSG:4326
+  target_crs: "EPSG:32645"               # UTM zone 45N — metric, correct for the Jamuna
+  resolution_m: 120.0                    # square pixel edge, metres, in target_crs
+  tile_size: 512                         # pixels; one raw GeoTIFF is tile_size x tile_size
+
+# ---------------------------------------------------------------------------
+# Stage 1 — acquisition
+# ---------------------------------------------------------------------------
+acquire:
+  year_start: 1972
+  year_end: 2024
+  # Microsoft Planetary Computer STAC. Used instead of the Earth Engine Code
+  # Editor because it needs no interactive Google auth and can be driven from
+  # a script; gee/01_mndwi_export.js reproduces the identical logic in GEE.
+  stac_url: "https://planetarycomputer.microsoft.com/api/stac/v1"
+  collections:
+    oli_tm_etm: "landsat-c2-l2"   # Landsat 4/5 TM, 7 ETM+, 8/9 OLI  — has SWIR1
+    mss: "landsat-c2-l1"          # Landsat 1-5 MSS                  — NO SWIR
+  max_cloud_cover: 80             # scene-level pre-filter; per-pixel QA does the real work
+  workers: 12                     # thread pool size for windowed COG reads
+  max_scenes_per_month: 10        # keep the N least-cloudy scenes; a median over 10 is already robust
+  min_valid_fraction: 0.10        # a monthly composite with less valid area than this is dropped
+
+# ---------------------------------------------------------------------------
+# Stage 2 — preprocessing
+# ---------------------------------------------------------------------------
+preprocess:
+  otsu_bins: 256
+  otsu_search_range: [-0.7, 0.7]  # index range considered when locating the land mode
+  max_gap_months: 6               # longer gaps are left as NaN, not interpolated across
+  mss_median_filter: 3            # 3x3 median on MSS months only, to suppress detector striping
+  smooth_window: 0                # 0 = off; >0 applies a centred temporal median of this width
+  min_tile_coverage: 0.60         # fraction of months a tile must have to enter the dataset
+
+# ---------------------------------------------------------------------------
+# Stage 3 — model
+# ---------------------------------------------------------------------------
+data:
+  in_frames: 12                   # 12 monthly frames in
+  out_frames: 3                   # predict the next 3 months
+  crop_size: 512                  # model input; local.yaml drops this to 256
+  batch_size: 2
+  window_stride: 1                # months between training window starts; >1 locally
+  num_workers: 0                  # Windows: keep 0, worker spawn is expensive and flaky here
+  split:
+    train_end_year: 2011          # train 1972-2011
+    val_end_year: 2017            # validate 2012-2017
+    # test 2018-2024 — strictly later than everything the model has seen
+
+model:
+  name: timesformer               # timesformer | convlstm | persistence
+  embed_dim: 256
+  depth: 6
+  num_heads: 8
+  patch_size: 16
+  decoder_channels: [128, 64, 32]
+  dropout: 0.1
+
+loss:
+  bce_weight: 1.0
+  gradient_weight: 0.3            # BCE + 0.3 * spatial_gradient_loss (CLAUDE.md §2)
+  pos_weight: null                # null = computed from the training split class balance
+
+train:
+  max_epochs: 40
+  lr: 3.0e-4
+  weight_decay: 0.01
+  accelerator: "auto"
+  precision: "32-true"
+  grad_clip: 1.0
+  accumulate_grad_batches: 1
+  early_stop_patience: 8
+  checkpoint_every_epoch: true    # every epoch, and resumable — a crashed run is burnt budget
+
+# ---------------------------------------------------------------------------
+# Stage 4 — risk overlay
+# ---------------------------------------------------------------------------
+risk:
+  erosion_prob_threshold: 0.5     # sigmoid > this in the forecast AND land now => erosion
+  min_polygon_area_m2: 10000.0    # 1 ha; drops speckle before the spatial join
+  simplify_tolerance_m: 30.0
+  overpass_url: "https://overpass-api.de/api/interpreter"
+  overpass_timeout_s: 60          # per-cell server timeout; a 0.1 deg rural cell answers in seconds, so a long timeout only makes a hung mirror expensive
+  persons_per_household: 4.5      # BBS 2022 Census mean household size, Bangladesh
+  gadm_level: 4                   # GADM level 4 == union parishad in Bangladesh
+  gadm_url: "https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_BGD_4.json.zip"
+  # OSM mapping density: mapped buildings per km2 over the part of each union
+  # the Overpass query covered (EPSG:32645 areas, water included). It says how
+  # far to trust the building count, and whether an empty erosion zone is
+  # unsettled land or an unmapped village. Order-of-magnitude bands; see
+  # docs/NOTES.md 2026-09-22.
+  osm_density_low_below: 10.0     # buildings/km2: below this the settlement is essentially unmapped
+  osm_density_high_from: 100.0    # buildings/km2: densely mapped (which is not the same as complete)
+  osm_density_min_area_km2: 1.0   # measure only over at least this much queried area
+  # Bengali names for division/district/upazila/union. The compilation comes
+  # from the Bangladesh National Portal (bangladesh.gov.bd), pinned to a commit
+  # so a re-run reads the same file; every matched name is then checked against
+  # the title of that unit's own official portal page.
+  bn_names_url: "https://raw.githubusercontent.com/nuhil/bangladesh-geocode/5622f68bd07a98e076edcf8100bf0db6a75b9854"
+  bn_portal_delay_s: 0.5          # pause between portal page requests; each page is fetched once, then cached
+  # Intermediate certificates some portal servers fail to send (an incomplete
+  # chain, which browsers repair and Python does not). Fetched once from the
+  # certificate's own AIA address, pinned by the SHA-256 of its DER encoding,
+  # and added to certifi's roots for the portal check. Verification stays on.
+  bn_portal_intermediates:
+    - url: "http://crt.sectigo.com/SectigoPublicServerAuthenticationCADVR36.crt"   # *.bogra, *.tangail, ... gov.bd
+      sha256: "8c54c334b66ba4e426772af4a3f9136c19a1aec729fdb28c535c07a5a4ef22e0"
